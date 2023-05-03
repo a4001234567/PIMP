@@ -25,85 +25,63 @@ def parse_param(params):
     else:arg.append(key)
     return (arg,argv)
 
+
+LEFT_FUNCTION_PARENTHESIS = -1
+RIGHT_FUNCTION_PARENTHESIS = 1
+LEFT_PRIORITY_PARENTHESIS = -2
+RIGHT_PRIORITY_PARENTHESIS = 2
+COMMA = 3;COLON=-3
+AND = 4;OR = -4
+FUNCTION_NAME = 0
+PARAM = 5
+
+
+def create_expression(string):
+    '''
+    Generate an expression object from a string.
+    This function implements lexical analysis, a list of different components are
+    then fed to expression initialization to generate an expression object.
+    A components may be one of the special characters ':',',','(',')';
+    or one of the logical operator '&','|';
+    or function's name: 'Not','Pinmatch','Wordmatch','Match','More','Less'.
+    or a function's parameters, which is a sequence of non-special characters 
+    enclosed in the parenthesis of a function.
+    '''
+    types = [];components = []
+    depth = 0;cur = '';FLAG_ARG=False;ARG_DEPTH = 0
+    for idx,char in enumerate(string):
+        try:
+            match char:
+                case ':':
+                    assert FLAG_ARG,'Colon should be used inside function arguments only!'
+                    components.append(':')
+                    types.append(COLON)
+                case ',':
+                    assert FLAG_ARG,'Comma should be used inside function arguments only!'
+                    if ARG_DEPTH != depth:
+                        #comma is inside 
+                        cur += ','
+                    else:
+                        components.append(',')
+                        types.append(COMMA)
+                case '(':
+                    depth += 1
+                    #determine types of parenthesis
+                    if FLAG_ARG:
+                        cur += '('
+                case ')':
+                case '&':
+                case '|':
+                case _:
+
+
+
+
 class expression:
     def __init__(self,string,first = False):
-        self.type = None
-        self.prefix = ''
-        depth = 0
-        first_par = 10000
-        if first and string[0] == '(' and string[-1] == ')':
-            string = string[1:-1]
-        for i,char in enumerate(string):
-            match char:
-                case '(':
-                    first_par = min(first_par,i)
-                    depth += 1
-                case ')':
-                    depth -= 1
-                case '&':
-                    if depth > 0: continue
-                    self.type='AND'
-                    self.left = expression(string[:i],first=True)
-                    self.right = expression(string[i+1:])
-                    if self.right.time > self.left.time:
-                        self.right,self.left = self.left,self.right
-                    self.time = self.left.time
-                case '|':
-                    if depth > 0: continue
-                    self.type='OR'
-                    self.left = expression(string[:i],first=True)
-                    self.right = expression(string[i+1:])
-                    if self.right.time > self.left.time:
-                        self.right,self.left = self.left,self.right
-                    self.time = self.left.time
-            assert depth >= 0, 'Parenthesis Mismatch!'
-            if self.type:break
-        else:
-            if string[0] == '(':
-                assert string[-1] == ')', f'Condition {string} should end with ")"!'
-                self.__init__(string[1:-1])
-            else:
-                self.type = string[:first_par]
-                self.param = string[first_par+1:-1]
-                assert self.type in ('Not','More','Less') or '(' not in self.param, 'Paramaters cannot contain parenthesis unless for Not, More and Less'
-                match self.type:
-                    case 'Not':
-                        self.param = expression(self.param)
-                        self.time = self.param.time
-                    case 'More'|'Less':
-                        depth = 0;starts = 0;params = []
-                        for i,char in enumerate(self.param):
-                            match char:
-                                case '(':depth += 1
-                                case ')':depth -= 1
-                                case ',':
-                                    if depth:continue
-                                    params.append(self.param[starts:i])
-                                    starts = i+1
-                            assert depth>=0, 'Parenthesis Mismatch!'
-                        params.append(self.param[starts:])
-                        self.param = (int(params[0]),*sorted(tuple(map(expression,params[1:])),key = lambda x:x.time))
-                        self.time = 0
-                        if self.type == 'More':
-                            self.time = sum(map(lambda x:x.time,self.param[1:self.param[0]]))
-                        else:
-                            self.time = sum(map(lambda x:x.time,self.param[1:]))
-                        #self.param = (int(params[0]),*map(expression,params[1:]))
-                    case 'Pinmatch'|'Wordmatch':
-                        self.param = parse_param(self.param)
-                        if self.type == 'Pinmatch':
-                            self.time = 86
-                            self.threshold = float(self.param[1].get('threshold',0.5))
-                        else:self.time = 100
-                        assert len(self.param[0]) == 1, f'{self.type} allow only 1 pattern!'
-                    case 'Match':
-                        args,argv = parse_param(self.param)
-                        assert len(args) == 1, f'Match allow only 1 pattern!'
-                        threshold = float(argv.get('threshold',0.01))
-                        self.type = 'OR'
-                        self.right = expression(f'Wordmatch({args[0]})')
-                        self.left = expression(f'Pinmatch({args[0]},threshold:{threshold})')
-                        self.time = self.left.time
+        #lexical analysis
+        parsed_string = []
+        for 
 
     def __repr__(self):
         if 'AND' == self.type or 'OR' == self.type:
