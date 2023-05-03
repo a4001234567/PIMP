@@ -25,9 +25,9 @@ def parse_param(params):
     else:arg.append(key)
     return (arg,argv)
 
-FUNCTION_NAME = ('Not','Pinmatch','Wordmatch','Match','More','Less')
-SPECIAL_CHAR = (':',',','(',')')
-OPERATOR = ('&','|')
+FUNCTION_NAMES = ('Not','Pinmatch','Wordmatch','Match','More','Less')
+SPECIAL_CHARS = (':',',','(',')')
+OPERATORS = ('&','|')
 
 LEFT_FUNCTION_PARENTHESIS = -1
 RIGHT_FUNCTION_PARENTHESIS = 1
@@ -39,7 +39,7 @@ FUNCTION_NAME = 0
 PARAM = 5
 
 
-def create_expression(string):
+def lexical_analysis(string):
     '''
     Generate an expression object from a string.
     This function implements lexical analysis, a list of different components are
@@ -53,22 +53,36 @@ def create_expression(string):
     types = [];components = []
     depth = 0;cur = '';FLAG_ARG=False;ARG_DEPTH = 0
 
-    def flush_current():
+    def flush_current(cur,FLAG_ARG):
+        if not cur:return
         if not FLAG_ARG:
-            assert cur in FUNCTION_NAME,f'Unrecognized function name {cur}!'
+            assert cur in FUNCTION_NAMES,f'Unrecognized function name {cur}!'
             types.append(FUNCTION_NAME)
             components.append(cur)
+            cur = ''
         else:
             types.append(PARAM)
             components.append(cur)
+            cur = ''
 
     for idx,char in enumerate(string):
-        try:
+        if ' ' == char: continue
+        #try:
+        if True:
+            assert depth >= 0, 'Mismatch Parenthesis!'
+            if ((not FLAG_ARG) and (char in SPECIAL_CHARS or char in OPERATORS)) or (FLAG_ARG and ',' == char and depth == ARG_DEPTH):
+                flush_current(cur,FLAG_ARG)
+                cur = ''
             match char:
                 case ':':
                     assert FLAG_ARG,'Colon should be used inside function arguments only!'
-                    components.append(':')
-                    types.append(COLON)
+                    if depth == ARG_DEPTH:
+                        flush_current(cur,FLAG_ARG)
+                        cur = ''
+                        components.append(':')
+                        types.append(COLON)
+                    else:
+                        cur += ':'
                 case ',':
                     assert FLAG_ARG,'Comma should be used inside function arguments only!'
                     if ARG_DEPTH != depth:
@@ -87,22 +101,55 @@ def create_expression(string):
                         types.append(LEFT_FUNCTION_PARENTHESIS)
                         components.append('(')
                         FLAG_ARG = True;ARG_DEPTH = depth
-                    elif len(types) == 0 or types[-1] in (AND,OR):
+                    else:
                         types.append(LEFT_PRIORITY_PARENTHESIS)
                         components.append('(')
                 case ')':
+                    depth -= 1
+                    if FLAG_ARG:
+                        if depth < ARG_DEPTH:
+                            #The end of function arguments
+                            flush_current(cur,FLAG_ARG)
+                            cur = ''
+                            types.append(RIGHT_FUNCTION_PARENTHESIS)
+                            components.append(')')
+                            FLAG_ARG = False;ARG_DEPTH = 0
+                        else:
+                            cur += ')'
+                    else:
+                        types.append(RIGHT_PRIORITY_PARENTHESIS)
+                        components.append(')')
                 case '&':
+                    if FLAG_ARG:
+                        cur += '&'
+                    else:
+                        components.append('&')
+                        types.append(AND)
                 case '|':
+                    if FLAG_ARG:
+                        cur += '|'
+                    else:
+                        components.append('|')
+                        types.append(OR)
                 case _:
+                    cur += char
+        #except Exception as e:
+        #    print(e)
+    assert depth == 0, 'Parenthesis missing!'
+    return components,types
+print(lexical_analysis(' '))
+print(lexical_analysis('Pinmatch(hi)'))
+print(lexical_analysis('Pinmatch(hi,threshold:2)'))
+print(lexical_analysis('More(2,Match(西藏),Match(东,threshold:1)|Match(右,threshold:1),Match(花,threshold:1))'))
+print(lexical_analysis('More(2,Match(日,threshold:1)|Match(阳,threshold:1),Match(烷,threshold:5)|Match(基,threshold:1))'))
 
-
+exit()
 
 
 class expression:
     def __init__(self,string,first = False):
         #lexical analysis
         parsed_string = []
-        for 
 
     def __repr__(self):
         if 'AND' == self.type or 'OR' == self.type:
