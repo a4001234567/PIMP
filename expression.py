@@ -25,6 +25,9 @@ def parse_param(params):
     else:arg.append(key)
     return (arg,argv)
 
+FUNCTION_NAME = ('Not','Pinmatch','Wordmatch','Match','More','Less')
+SPECIAL_CHAR = (':',',','(',')')
+OPERATOR = ('&','|')
 
 LEFT_FUNCTION_PARENTHESIS = -1
 RIGHT_FUNCTION_PARENTHESIS = 1
@@ -49,6 +52,16 @@ def create_expression(string):
     '''
     types = [];components = []
     depth = 0;cur = '';FLAG_ARG=False;ARG_DEPTH = 0
+
+    def flush_current():
+        if not FLAG_ARG:
+            assert cur in FUNCTION_NAME,f'Unrecognized function name {cur}!'
+            types.append(FUNCTION_NAME)
+            components.append(cur)
+        else:
+            types.append(PARAM)
+            components.append(cur)
+
     for idx,char in enumerate(string):
         try:
             match char:
@@ -68,7 +81,15 @@ def create_expression(string):
                     depth += 1
                     #determine types of parenthesis
                     if FLAG_ARG:
+                        #Inside parenthesis of a function
                         cur += '('
+                    elif len(types) and FUNCTION_NAME == types[-1]:
+                        types.append(LEFT_FUNCTION_PARENTHESIS)
+                        components.append('(')
+                        FLAG_ARG = True;ARG_DEPTH = depth
+                    elif len(types) == 0 or types[-1] in (AND,OR):
+                        types.append(LEFT_PRIORITY_PARENTHESIS)
+                        components.append('(')
                 case ')':
                 case '&':
                 case '|':
